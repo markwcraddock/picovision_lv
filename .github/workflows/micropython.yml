@@ -35,6 +35,20 @@ jobs:
         submodules: false  # MicroPython submodules are hideously broken
         path: micropython
 
+    - name: Fetch LVGL bindings submodule
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: micropython
+      run: |
+        git submodule add https://github.com/lvgl/lv_binding_micropython lib/lvgl_bindings
+
+    - name: Fetch LVGL  submodule
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: micropython
+      run: |
+        git submodule add https://github.com/lvgl/lv_binding_micropython lib/lvgl
+
     - name: Fetch Pico submodules
       if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
@@ -47,12 +61,30 @@ jobs:
         git submodule update --init lib/micropython-lib
         git submodule update --init lib/tinyusb
         git submodule update --init lib/btstack
+        git submodule update --init --recursive lib/lvgl_bindings
+        git submodule update --init --recursive lib/lvgl
 
     - name: Build mpy-cross
       if: steps.cache.outputs.cache-hit != 'true'
       shell: bash
       working-directory: micropython/mpy-cross
       run: make
+
+    - name: Generate LVGL bindings
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      working-directory: micropython/lib/lvgl_bindings
+      run: |
+        python gen/gen_mpy.py \
+        -I. -I../lib/lvgl -DENABLE_LVGL -DLV_CONF_INCLUDE_SIMPLE \
+        --board = ../../ports/rp2/boards/RPI_PICO_W \
+        --output=lvgl_mpy.c \
+        --include=../.. \
+        --include=../lib/lvgl \
+        --module_name=lvgl \
+        --module_prefix=lv \
+        --metadata=lv_mpy.json \
+        --header_file=lvgl_header.h
 
   build:
     needs: deps
